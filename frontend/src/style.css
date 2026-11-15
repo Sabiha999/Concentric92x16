@@ -100,3 +100,30 @@ figcaption a { color: #81d5ff; }
 .observation-key {
   margin-bottom: 10px;
 }
+
+.learn-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 16px;
+}
+.learn-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+}
+.learn-fact h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.learn-fact p {
+  margin: 0;
+  color: #b6c7dd;
+  line-height: 1.55;
+}
+.learn-fact a {
+  align-self: start;
+  margin-top: auto;
+  color: #91caff;
+  font-size: 13px;
+}

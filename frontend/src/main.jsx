@@ -13,6 +13,45 @@ const surveyNames = { dss2: 'DSS2 optical', '2mass': '2MASS near-infrared' };
 const wise = { ra: '133.795129', dec: '-7.245147' };
 const query = (path, params) => fetchJson(path + '?' + new URLSearchParams(params));
 
+const learnFacts = [
+  {
+    title: 'The same sky can look different in another wavelength',
+    fact: 'SPHEREx maps the sky in 102 infrared wavelength bands. In one NASA example, a dust cloud glows at 3.29 micrometres and fades from view at 0.98 micrometres.',
+    source: 'NASA SPHEREx',
+    url: 'https://www.nasa.gov/missions/spherex/nasas-spherex-space-telescope-begins-capturing-entire-sky/',
+  },
+  {
+    title: 'The 2MASS map combines three infrared bands',
+    fact: '2MASS surveyed the sky in three near-infrared bands called J, H and Ks. The 2MASS layer in Sky Explorer gives you an infrared background for the region you search.',
+    source: 'NASA/IPAC IRSA',
+    url: 'https://irsa.ipac.caltech.edu/Missions/2mass.html',
+  },
+  {
+    title: 'An image pixel can have a sky address',
+    fact: 'A FITS image can store a mapping from pixels to right ascension and declination. StellarEye uses this mapping to report sky coordinates when it finds a bright spot.',
+    source: 'NASA FITS',
+    url: 'https://fits.gsfc.nasa.gov/fits_wcs.html',
+  },
+  {
+    title: 'A nearby catalog entry is a clue',
+    fact: 'Object Explorer checks SIMBAD for known sources within 15 arcseconds of a selected spot. That distance is just 1/240 of a degree. A close entry is a possible match to investigate.',
+    source: 'CDS SIMBAD',
+    url: 'https://simbad.cfa.harvard.edu/simbad/',
+  },
+  {
+    title: 'WISE 0855 is a cold brown dwarf',
+    fact: 'Astronomers have found evidence of water clouds or ice in its infrared spectrum. You can explore saved SPHEREx observations of its sky region in the WISE 0855 demo.',
+    source: 'NASA Science',
+    url: 'https://science.nasa.gov/universe/exoplanets/astronomers-find-water-clouds-in-cold-jupiter-like-object/',
+  },
+  {
+    title: 'Planet X is still hypothetical',
+    fact: 'The proposed planet could help explain the orbits of some icy objects far beyond Neptune. Its existence remains unconfirmed.',
+    source: 'NASA Solar System',
+    url: 'https://science.nasa.gov/solar-system/planet-x/',
+  },
+];
+
 function App() {
   const [ra, setRa] = useState('83.6331');
   const [dec, setDec] = useState('22.0145');
@@ -336,10 +375,12 @@ function App() {
           setTab('Sky Explorer'); moveTo(item); search({ ra: item.ra, dec: item.dec });
         }}>{item.label}<small>{item.ra}°, {item.dec}°</small></button>) : <p>No saved investigations yet.</p>}
       </section>}
-      {tab === 'Learn' && <section className="panel feature-panel">
-        <h2>From a sky position to an infrared observation</h2>
-        <p>Right ascension and declination locate a region on the sky. IRSA returns the SPHEREx observations intersecting the search circle. FITS stores the calibrated image and the coordinate system used to map image pixels back to the sky.</p>
-        <p>A brightness peak can come from an astronomical source or an artifact. Use the catalog result and repeat observations to investigate it.</p>
+      {tab === 'Learn' && <section className="learn-facts" aria-label="Astronomy facts">
+        {learnFacts.map(({ title, fact, source, url }) => <article className="panel learn-fact" key={title}>
+          <h2>{title}</h2>
+          <p>{fact}</p>
+          <a href={url}>{source}</a>
+        </article>)}
       </section>}
       <footer>Observations · <TermHelp term="irsa">NASA/IPAC IRSA</TermHelp> | Sky navigation · CDS Aladin Lite | Catalog · SIMBAD</footer>
     </main>
