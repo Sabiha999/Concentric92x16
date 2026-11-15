@@ -1,11 +1,14 @@
-// Full-sky DSS2 HiPS mirrors. Use their URLs directly instead of resolving a CDS survey ID.
-const surveys = [
-  'https://cdn.skies.esac.esa.int/DSSColor',
-  'https://casda.csiro.au/hips/DSS2/color',
-];
+// Direct HiPS URLs avoid the CDS identifier lookup.
+const surveys = {
+  dss2: [
+    'https://cdn.skies.esac.esa.int/DSSColor',
+    'https://casda.csiro.au/hips/DSS2/color',
+  ],
+  '2mass': ['https://cdn.skies.esac.esa.int/2MASSColor'],
+};
 
-export async function findOpticalSurvey(signal) {
-  for (const url of surveys) {
+export async function findSurvey(name, signal) {
+  for (const url of surveys[name]) {
     try {
       const probe = { signal: AbortSignal.any([signal, AbortSignal.timeout(4500)]) };
       const [manifest, image] = await Promise.all([

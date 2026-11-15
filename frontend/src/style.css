@@ -25,3 +25,6 @@ figcaption a { color: #81d5ff; }
 .coordinate-navigator { padding: 18px; border: 1px solid #2b4059; border-radius: 8px; }
 .coordinate-navigator h2 { margin: 0; font-size: 16px; }
 .item small { color: #b1c5df; }
+.catalog-controls { border-top: 1px solid #2b4059; margin-top: 12px; padding-top: 4px; }
+.catalog-controls summary { cursor: pointer; color: #bde5fb; padding: 8px 0; }
+.catalog-controls .scroll { max-height: 230px; }

@@ -51,3 +51,9 @@ Run `npm --prefix frontend run build` and run `python -m pip check` with the vir
 5. Open **Spectral Explorer**, then **Measure spectral samples**. Samples are nearest usable pixel surface brightness, including local background.
 
 The saved demo uses IRSA cutouts at RA 133.795129°, Dec −7.245147°, with a width of 0.05°. The local FITS files preserve the primary, IMAGE, FLAGS, VARIANCE and WCS-WAVE HDUs. The archive URLs are included with the observation records. IRSA DR1 spectral images DOI: [10.26131/IRSA678](https://doi.org/10.26131/IRSA678).
+
+## Survey and catalog layers
+
+In Sky Explorer, use **Background survey** to switch between DSS2 optical and 2MASS near-infrared imagery. These map layers provide context for the separate SPHEREx FITS cutout.
+
+**Load Gaia DR3** searches around the current RA/Dec fields using the separate Gaia radius. It lists up to 100 sources from CDS VizieR, with positions at the catalog epoch J2016.0. When the map is available, click a teal marker to inspect its Gaia source ID, position and G magnitude. The list is usable in coordinate mode. Results include a saved Gaia subset for the WISE 0855 center within 0.05° when VizieR is unavailable. This is a positional overlay. The coordinates are not propagated to the SPHEREx observing epoch.

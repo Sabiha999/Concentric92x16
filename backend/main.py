@@ -9,7 +9,7 @@ from astroquery.simbad import Simbad
 import requests, io, numpy as np, sqlite3, os
 from pathlib import Path
 import json
-from services import science
+from services import gaia, science
 
 app=FastAPI(title='SPHEREx Explorer')
 app.add_middleware(CORSMiddleware,allow_origins=['http://localhost:5173', 'http://127.0.0.1:5173', os.getenv('FRONTEND_ORIGIN', 'http://localhost:5173')],allow_methods=['*'],allow_headers=['*'])
@@ -38,6 +38,23 @@ def demo():
  rows = demo_records()
  return {'ra': DEMO_RA, 'dec': DEMO_DEC, 'collection': 'spherex_dr1',
          'count': len(rows), 'observations': rows, 'cached': True}
+
+
+@app.get('/api/gaia')
+def gaia_sources(ra: float, dec: float, radius: float = 0.05):
+ if not (0 <= ra < 360 and -90 <= dec <= 90 and 0 < radius <= 0.2):
+  raise HTTPException(400, 'Enter valid RA and Dec and a radius up to 0.2°.')
+ cached = False
+ try:
+  sources = gaia.search(ra, dec, radius)
+ except (requests.RequestException, ValueError) as error:
+  if abs(ra - DEMO_RA) > 1e-7 or abs(dec - DEMO_DEC) > 1e-7 or radius > 0.05:
+   raise HTTPException(502, 'Gaia DR3 lookup via VizieR is unavailable. Try again later.') from error
+  demo_catalog = json.loads((DEMO_DIR / 'gaia-wise0855.json').read_text(encoding='utf-8'))
+  sources = gaia.within_cone(demo_catalog['sources'], ra, dec, radius)
+  cached = True
+ return {'sources': sources[:gaia.LIMIT], 'catalog': gaia.CATALOG, 'epoch': 2016.0,
+         'cached': cached, 'truncated': len(sources) > gaia.LIMIT}
 
 
 def irsa_get(url, params):

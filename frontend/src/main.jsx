@@ -2,11 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { fetchJson, observationDate } from './sky-api.js';
 import { Comparison, SourceImage, SpectralSamples } from './Investigation.jsx';
-import { findOpticalSurvey } from './sky-surveys.js';
+import { findSurvey } from './sky-surveys.js';
+import GaiaCatalog from './GaiaCatalog.jsx';
 import './style.css';
 
 const tabs = ['Sky Explorer', 'Candidate Finder', 'Object Explorer', 'Timeline', 'Time Comparison', 'Spectral Explorer', 'Saved', 'Learn'];
 const releases = ['spherex_dr1', 'spherex_qr3', 'spherex_dr1_deep', 'spherex_qr3_deep'];
+const surveyNames = { dss2: 'DSS2 optical', '2mass': '2MASS near-infrared' };
 const wise = { ra: '133.795129', dec: '-7.245147' };
 const query = (path, params) => fetchJson(path + '?' + new URLSearchParams(params));
 
@@ -20,6 +22,9 @@ function App() {
   const [status, setStatus] = useState('Ready');
   const [mapStatus, setMapStatus] = useState('loading');
   const [coordinateMode, setCoordinateMode] = useState(false);
+  const [surveyChoice, setSurveyChoice] = useState('dss2');
+  const [activeSurvey, setActiveSurvey] = useState(null);
+  const [surveyStatus, setSurveyStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const [listing, setListing] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -28,36 +33,46 @@ function App() {
   const [catalog, setCatalog] = useState(null);
   const [saved, setSaved] = useState([]);
   const viewer = useRef(null);
+  const aladinLibrary = useRef(null);
   const mapContainer = useRef(null);
   const position = useRef({ ra: 83.6331, dec: 22.0145 });
 
   useEffect(() => {
     const controller = new AbortController();
     async function init() {
+      const label = surveyNames[surveyChoice];
+      setSurveyStatus(`Checking ${label} imagery…`);
       try {
-        const survey = await findOpticalSurvey(controller.signal);
+        const survey = await findSurvey(surveyChoice, controller.signal);
         if (controller.signal.aborted) return;
-        if (!survey) {
-          setMapStatus('offline');
-          return;
+        if (!survey) throw new Error('Survey is unavailable');
+        if (viewer.current) {
+          const layer = viewer.current.setBaseImageLayer(survey);
+          await layer?.query;
+        } else {
+          const { default: A } = await import('aladin-lite');
+          await A.init;
+          if (controller.signal.aborted) return;
+          const { ra, dec } = position.current;
+          mapContainer.current.hidden = false;
+          viewer.current = A.aladin(mapContainer.current, {
+            survey, fov: 2, target: `${ra} ${dec}`, showReticle: true,
+          });
+          aladinLibrary.current = A;
         }
-        const { default: A } = await import('aladin-lite');
-        await A.init;
         if (controller.signal.aborted) return;
-        const { ra, dec } = position.current;
-        // Make the container visible before Aladin measures it.
-        mapContainer.current.hidden = false;
-        viewer.current = A.aladin(mapContainer.current, {
-          survey, fov: 2, target: `${ra} ${dec}`, showReticle: true,
-        });
+        setActiveSurvey(surveyChoice);
         setMapStatus('ready');
+        setSurveyStatus('');
       } catch {
-        if (!controller.signal.aborted) setMapStatus('offline');
+        if (controller.signal.aborted) return;
+        if (!viewer.current) setMapStatus('offline');
+        setSurveyStatus(`${label} could not be loaded. You can switch surveys or use coordinates.`);
       }
     }
     init();
     return () => controller.abort();
-  }, []);
+  }, [surveyChoice]);
 
   function moveTo(target) {
     position.current = { ra: Number(target.ra), dec: Number(target.dec) };
@@ -185,12 +200,18 @@ function App() {
       </section>}
       <div className={inSky ? 'layout' : ''}>
         <section className="panel viewer" hidden={!inSky}>
-          <div className="paneltitle">Celestial sky navigator <span>Aladin Lite · DSS2 optical survey</span></div>
+          <div className="paneltitle">Celestial sky navigator <span>Aladin Lite{activeSurvey && ` · ${surveyNames[activeSurvey]}`}</span></div>
+          <div className="controls">
+            <label>Background survey<select value={surveyChoice} disabled={surveyStatus.startsWith('Checking')}
+              onChange={event => setSurveyChoice(event.target.value)}>
+              {Object.entries(surveyNames).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+            </select></label>
+          </div>
+          {surveyStatus && <p className="hint" role="status">{surveyStatus}</p>}
           <div ref={mapContainer} id="aladin" className="sky-map" hidden={mapStatus !== 'ready' || coordinateMode} />
-          {mapStatus === 'loading' && <p className="hint" role="status">Checking DSS2 survey availability…</p>}
           {mapStatus === 'offline' || coordinateMode ? <div className="coordinate-navigator">
             <h2>Coordinate navigator</h2>
-            {mapStatus === 'offline' && <p>DSS2 imagery is unavailable. Enter coordinates above or use the controls below.</p>}
+            {mapStatus === 'offline' && <p>Enter coordinates above or use the controls below.</p>}
             <p>RA {ra || '—'}° · Dec {dec || '—'}°</p>
             <div className="controls" aria-label="Move by one degree">
               <button disabled={busy} onClick={() => nudge(0, 1)}>North 1°</button>
@@ -206,9 +227,11 @@ function App() {
               if (center) moveTo({ ra: center[0].toFixed(6), dec: center[1].toFixed(6) });
             }}>Use map center</button>}
             <button onClick={() => setCoordinateMode(!coordinateMode)}>
-              {coordinateMode ? 'Show optical map' : 'Use coordinate navigator'}
+              {coordinateMode ? 'Show survey map' : 'Use coordinate navigator'}
             </button>
           </div>}
+          <GaiaCatalog ra={ra} dec={dec} map={viewer.current} library={aladinLibrary.current}
+            mapVisible={mapStatus === 'ready' && !coordinateMode} />
         </section>
         {observing && <section className="panel">
           <div className="paneltitle">Observations <span>{listing?.count ?? 0} listed</span></div>
