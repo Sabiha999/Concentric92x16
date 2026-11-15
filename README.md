@@ -1,4 +1,4 @@
-# Concentric92x16 · SPHEREx Explorer
+# StellarEye
 
 Local development uses Python 3.12 and Node.js 22 or 24. The starter includes sky navigation, live IRSA observation search and FITS previews, SIMBAD lookup, and SQLite bookmarks. Temporal comparison, spectra, and candidate detection have starter screens.
 
@@ -53,6 +53,8 @@ Run `npm --prefix frontend run build` and run `python -m pip check` with the vir
 The saved demo uses IRSA cutouts at RA 133.795129°, Dec −7.245147°, with a width of 0.05°. The local FITS files preserve the primary, IMAGE, FLAGS, VARIANCE and WCS-WAVE HDUs. The archive URLs are included with the observation records. IRSA DR1 spectral images DOI: [10.26131/IRSA678](https://doi.org/10.26131/IRSA678).
 
 ## Survey and catalog layers
+
+Hover over, focus, or tap a **?** icon for a plain-language definition. Press **Esc** to close a tooltip.
 
 In Sky Explorer, use **Background survey** to switch between DSS2 optical and 2MASS near-infrared imagery. These map layers provide context for the separate SPHEREx FITS cutout.
 

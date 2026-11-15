@@ -34,3 +34,58 @@ figcaption a { color: #81d5ff; }
 .search-actions { border-top: 1px solid #2b4059; padding-top: 10px; }
 .catalog-controls h2 { margin-top: 8px; }
 @media (max-width: 850px) { .sky-search { grid-template-columns: 1fr; } }
+
+.help-field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+.field-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.term-help {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-inline-start: 4px;
+}
+.term-help .term-help-trigger {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: #a8dbff;
+  background: #172e46;
+  border: 1px solid #527294;
+  border-radius: 50%;
+  font: 700 12px/1 system-ui, sans-serif;
+}
+.term-help-trigger:focus-visible {
+  outline: 2px solid #81d5ff;
+  outline-offset: 2px;
+}
+.term-help-bubble {
+  position: fixed;
+  z-index: 2000;
+  width: max-content;
+  max-width: min(270px, calc(100vw - 16px));
+  padding: 9px 12px;
+  color: #edf5ff;
+  background: #152941;
+  border: 1px solid #57769a;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px #0007;
+  font: 400 13px/1.45 Inter, system-ui, sans-serif;
+}
+.help-action {
+  display: inline-flex;
+  align-items: center;
+}
+.spectral-table-scroll {
+  overflow-x: auto;
+}
+.observation-key {
+  margin-bottom: 10px;
+}

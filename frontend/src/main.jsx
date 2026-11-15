@@ -4,6 +4,7 @@ import { fetchJson, observationDate } from './sky-api.js';
 import { Comparison, SourceImage, SpectralSamples } from './Investigation.jsx';
 import { findSurvey } from './sky-surveys.js';
 import GaiaCatalog from './GaiaCatalog.jsx';
+import TermHelp, { FieldLabel } from './TermHelp.jsx';
 import './style.css';
 
 const tabs = ['Sky Explorer', 'Candidate Finder', 'Object Explorer', 'Timeline', 'Time Comparison', 'Spectral Explorer', 'Saved', 'Learn'];
@@ -182,7 +183,7 @@ function App() {
   const inSky = tab === 'Sky Explorer';
   const observing = inSky || tab === 'Timeline';
   return <div className="app">
-    <aside><div className="brand">✦ SPHEREx <small>EXPLORER</small></div>
+    <aside><div className="brand">✦ StellarEye</div>
       <nav aria-label="Modules">{tabs.map(item => <button key={item} className={tab === item ? 'active' : ''}
         onClick={() => navigate(item)}>{item}</button>)}</nav></aside>
     <main>
@@ -192,7 +193,7 @@ function App() {
           event.preventDefault();
           if (!busy && name.trim()) resolve();
         }}>
-          <h2>Find a sky position</h2>
+          <h2>Find a sky position <TermHelp term="resolver" /></h2>
           <div className="controls">
             <label>Object name<input value={name} onChange={event => setName(event.target.value)} placeholder="Barnard’s Star" /></label>
             <button disabled={busy || !name.trim()}>Find object</button>
@@ -203,21 +204,34 @@ function App() {
           event.preventDefault();
           if (!busy && validCenter && validRadius) search();
         }}>
-          <h2>Search SPHEREx observations</h2>
+          <h2>Search SPHEREx observations <TermHelp term="irsa" /></h2>
           <div className="controls">
-            <label>Right ascension (°)<input inputMode="decimal" value={ra} onChange={event => setRa(event.target.value)} /></label>
-            <label>Declination (°)<input inputMode="decimal" value={dec} onChange={event => setDec(event.target.value)} /></label>
-            <label>Search radius (°)<input type="number" min=".001" max=".2" step="any" value={radius}
-              onChange={event => setRadius(event.target.value)} /></label>
-            <label>SPHEREx release<select value={collection} onChange={event => setCollection(event.target.value)}>
-              {releases.map(release => <option key={release}>{release}</option>)}</select></label>
+            <div className="help-field">
+              <FieldLabel id="search-ra" term="ra">Right ascension (RA, °)</FieldLabel>
+              <input id="search-ra" inputMode="decimal" value={ra} onChange={event => setRa(event.target.value)} />
+            </div>
+            <div className="help-field">
+              <FieldLabel id="search-dec" term="dec">Declination (Dec, °)</FieldLabel>
+              <input id="search-dec" inputMode="decimal" value={dec} onChange={event => setDec(event.target.value)} />
+            </div>
+            <div className="help-field">
+              <FieldLabel id="search-radius" term="radius">Search radius (°)</FieldLabel>
+              <input id="search-radius" type="number" min=".001" max=".2" step="any" value={radius}
+                onChange={event => setRadius(event.target.value)} />
+            </div>
+            <div className="help-field">
+              <FieldLabel id="search-release" term="release">SPHEREx release</FieldLabel>
+              <select id="search-release" value={collection} onChange={event => setCollection(event.target.value)}>
+                {releases.map(release => <option key={release}>{release}</option>)}
+              </select>
+            </div>
             <button className="primary" disabled={busy || !validCenter || !validRadius}>Search coordinates</button>
           </div>
           {(!validCenter || !validRadius) && <p className="hint">Use decimal degrees. RA must be 0° to below 360°, Dec −90° to +90°, and radius 0.001° through 0.2°.</p>}
           <div className="controls search-actions">
-            <button type="button" disabled={busy} onClick={() => {
+            <div className="help-action"><button type="button" disabled={busy} onClick={() => {
               setCollection('spherex_dr1'); setName('WISE 0855'); setRadius('0.01'); search(wise, 'spherex_dr1', true);
-            }}>Explore WISE 0855 demo</button>
+            }}>Explore WISE 0855 demo</button><TermHelp term="wise" /></div>
             <button type="button" disabled={busy || !validCenter}
               onClick={() => save({ ra, dec }, `Region ${ra}, ${dec}`)}>Save region</button>
           </div>
@@ -225,12 +239,15 @@ function App() {
       </div>}
       <div className={inSky ? 'layout' : ''}>
         <section className="panel viewer" hidden={!inSky}>
-          <div className="paneltitle">Celestial sky navigator <span>Aladin Lite{activeSurvey && ` · ${surveyNames[activeSurvey]}`}</span></div>
+          <div className="paneltitle"><div>Celestial sky navigator <TermHelp term="navigator" /></div><span>Aladin Lite{activeSurvey && ` · ${surveyNames[activeSurvey]}`}</span></div>
           <div className="controls">
-            <label>Background survey<select value={surveyChoice} disabled={surveyStatus.startsWith('Checking')}
-              onChange={event => setSurveyChoice(event.target.value)}>
-              {Object.entries(surveyNames).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-            </select></label>
+            <div className="help-field">
+              <FieldLabel id="background-survey" term="survey">Background survey</FieldLabel>
+              <select id="background-survey" value={surveyChoice} disabled={surveyStatus.startsWith('Checking')}
+                onChange={event => setSurveyChoice(event.target.value)}>
+                {Object.entries(surveyNames).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+              </select>
+            </div>
           </div>
           {surveyStatus && <p className="hint" role="status">{surveyStatus}</p>}
           <div ref={mapContainer} id="aladin" className="sky-map" hidden={mapStatus !== 'ready' || coordinateMode} />
@@ -247,6 +264,7 @@ function App() {
             <p className="hint">Select Search coordinates to retrieve SPHEREx observations at this position.</p>
           </div> : null}
           {mapStatus === 'ready' && <div className="controls">
+            {!coordinateMode && <div className="help-action">Map coordinates (ICRS) <TermHelp term="icrs" /></div>}
             {!coordinateMode && <button disabled={busy} onClick={() => {
               const center = viewer.current?.getRaDec();
               if (center) moveTo({ ra: center[0].toFixed(6), dec: center[1].toFixed(6) });
@@ -259,8 +277,9 @@ function App() {
             mapVisible={mapStatus === 'ready' && !coordinateMode} validCenter={validCenter} />
         </section>
         {observing && <section className="panel">
-          <div className="paneltitle">Observations <span>{listing?.count ?? 0} listed</span></div>
+          <div className="paneltitle"><div>Observations <TermHelp term="observation" /></div><span>{listing?.count ?? 0} listed</span></div>
           {listing && <p className="hint">{listing.collection} · RA {listing.ra}° · Dec {listing.dec}°{listing.cached && ' · Saved IRSA records'}</p>}
+          {!!listing?.count && <p className="hint observation-key">Time (UTC) <TermHelp term="utc" /> · Detector <TermHelp term="detector" /></p>}
           <div className="scroll">
             {listing?.observations.map(o => <button className="item" key={o.product_id}
               disabled={busy || !o.access_url} onClick={() => inspect(o)}>
@@ -271,18 +290,19 @@ function App() {
         </section>}
       </div>
       {(observing || tab === 'Candidate Finder') && <section className="panel feature-panel">
-        <div className="paneltitle">Scientific image / investigation
-          {preview && <button disabled={busy} onClick={detect}>Detect sources</button>}</div>
+        <div className="paneltitle"><div>Scientific image / investigation <TermHelp term="cutout" /></div>
+          {preview && <div className="help-action"><button disabled={busy} onClick={detect}>Detect sources</button><TermHelp term="peaks" /></div>}</div>
         {preview ? <>
           <SourceImage {...preview} sources={sources} active={active} onSelect={identify} />
-          <p className="hint">{observationDate(preview.observation)} · {preview.observation.energy_bandpassname} · <a href={preview.observation.access_url}>Source FITS</a></p>
+          <p className="hint">{observationDate(preview.observation)} · {preview.observation.energy_bandpassname} · <a href={preview.observation.access_url}>Source FITS</a> <TermHelp term="fits" /></p>
           {sources.length > 0 && <p className="hint">Markers are candidate brightness peaks. Select one to check nearby catalog entries.</p>}
         </> : <p className="placeholder">Select an observation to load its infrared cutout.</p>}
       </section>}
       {tab === 'Object Explorer' && <section className="panel feature-panel">
         {active ? <>
           <h2>Source {active.id}</h2>
-          <p>RA {active.ra.toFixed(6)}° · Dec {active.dec.toFixed(6)}°</p>
+          <p>RA {active.ra.toFixed(6)}° <TermHelp term="ra" /> · Dec {active.dec.toFixed(6)}° <TermHelp term="dec" /></p>
+          <h3>SIMBAD matches <TermHelp term="simbad" />{catalog?.length > 0 && <> <TermHelp term="arcsecond" /></>}</h3>
           {catalog?.length === 0 && <p>Unidentified in this SIMBAD search.</p>}
           {catalog?.map(object => <div key={object.main_id} className="object">
             <b>{object.main_id}</b> · {object.otype} · {object.separation_arcsec.toFixed(2)}″ away
@@ -301,7 +321,7 @@ function App() {
         : <p className="panel">Search for a region with at least two observations.</p>)}
       {tab === 'Spectral Explorer' && <section className="panel feature-panel">
         {listing && <SpectralSamples key={`${listing.ra}/${listing.dec}/${active?.id ?? 0}`} region={listing} active={active} />}
-        <h2>Detector wavelength coverage</h2>
+        <h2>Detector wavelength coverage <TermHelp term="detector" /> <TermHelp term="wavelength" /></h2>
         <p>These are archive-reported ranges across each product. A source spectrum requires calibrated brightness samples at the selected coordinates.</p>
         {listing?.observations.filter(o => o.em_min && o.em_max).map(o => <div className="object" key={o.product_id}>
           {o.energy_bandpassname} · {(Number(o.em_min) * 1e6).toFixed(2)}–{(Number(o.em_max) * 1e6).toFixed(2)} µm · {observationDate(o)}
