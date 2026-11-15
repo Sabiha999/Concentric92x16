@@ -32,7 +32,7 @@ const definitions = {
   sample: ['Spectral samples', 'Individual brightness readings at different wavelengths taken near the same sky position. A few samples give a quick look at how brightness varies with wavelength.'],
 };
 
-export default function TermHelp({ term }) {
+export default function TermHelp({ term, children, labelId }) {
   const [label, description] = definitions[term];
   const id = useId();
   const trigger = useRef(null);
@@ -83,16 +83,12 @@ export default function TermHelp({ term }) {
   }
 
   return <span className="term-help">
-    <button ref={trigger} type="button" className="term-help-trigger"
-      aria-label={`Explain ${label}`} aria-describedby={id}
+    <button ref={trigger} type="button" className={children ? "term-help-text" : "term-help-icon"}
+      id={labelId} aria-label={children ? undefined : `Explain ${label}`} aria-describedby={id}
       onPointerEnter={event => { if (event.pointerType === 'mouse') setOpen(true); }}
       onPointerLeave={leave} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)}
-      onClick={() => setOpen(true)}>?</button>
+      onClick={() => setOpen(true)}>{children ?? <span aria-hidden="true">ⓘ</span>}</button>
     {createPortal(<span id={id} ref={bubble} className="term-help-bubble" role="tooltip"
       hidden={!open} onPointerLeave={leave}>{description}</span>, document.body)}
   </span>;
-}
-
-export function FieldLabel({ id, term, children }) {
-  return <div className="field-label"><label htmlFor={id}>{children}</label><TermHelp term={term} /></div>;
 }

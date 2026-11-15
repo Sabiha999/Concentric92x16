@@ -4,7 +4,7 @@ import { fetchJson, observationDate } from './sky-api.js';
 import { Comparison, SourceImage, SpectralSamples } from './Investigation.jsx';
 import { findSurvey } from './sky-surveys.js';
 import GaiaCatalog from './GaiaCatalog.jsx';
-import TermHelp, { FieldLabel } from './TermHelp.jsx';
+import TermHelp from './TermHelp.jsx';
 import './style.css';
 
 const tabs = ['Sky Explorer', 'Candidate Finder', 'Object Explorer', 'Timeline', 'Time Comparison', 'Spectral Explorer', 'Saved', 'Learn'];
@@ -193,9 +193,12 @@ function App() {
           event.preventDefault();
           if (!busy && name.trim()) resolve();
         }}>
-          <h2>Find a sky position <TermHelp term="resolver" /></h2>
+          <h2>Find a sky position</h2>
           <div className="controls">
-            <label>Object name<input value={name} onChange={event => setName(event.target.value)} placeholder="Barnard’s Star" /></label>
+            <div className="help-field">
+              <TermHelp labelId="object-name-label" term="resolver">Object name</TermHelp>
+              <input aria-labelledby="object-name-label" value={name} onChange={event => setName(event.target.value)} placeholder="Barnard’s Star" />
+            </div>
             <button disabled={busy || !name.trim()}>Find object</button>
           </div>
           <p className="hint">Find object fills RA and Dec. Then search SPHEREx observations.</p>
@@ -204,24 +207,24 @@ function App() {
           event.preventDefault();
           if (!busy && validCenter && validRadius) search();
         }}>
-          <h2>Search SPHEREx observations <TermHelp term="irsa" /></h2>
+          <h2>Search SPHEREx observations</h2>
           <div className="controls">
             <div className="help-field">
-              <FieldLabel id="search-ra" term="ra">Right ascension (RA, °)</FieldLabel>
-              <input id="search-ra" inputMode="decimal" value={ra} onChange={event => setRa(event.target.value)} />
+              <TermHelp labelId="search-ra-label" term="ra">Right ascension (RA, °)</TermHelp>
+              <input id="search-ra" aria-labelledby="search-ra-label" inputMode="decimal" value={ra} onChange={event => setRa(event.target.value)} />
             </div>
             <div className="help-field">
-              <FieldLabel id="search-dec" term="dec">Declination (Dec, °)</FieldLabel>
-              <input id="search-dec" inputMode="decimal" value={dec} onChange={event => setDec(event.target.value)} />
+              <TermHelp labelId="search-dec-label" term="dec">Declination (Dec, °)</TermHelp>
+              <input id="search-dec" aria-labelledby="search-dec-label" inputMode="decimal" value={dec} onChange={event => setDec(event.target.value)} />
             </div>
             <div className="help-field">
-              <FieldLabel id="search-radius" term="radius">Search radius (°)</FieldLabel>
-              <input id="search-radius" type="number" min=".001" max=".2" step="any" value={radius}
+              <TermHelp labelId="search-radius-label" term="radius">Search radius (°)</TermHelp>
+              <input id="search-radius" aria-labelledby="search-radius-label" type="number" min=".001" max=".2" step="any" value={radius}
                 onChange={event => setRadius(event.target.value)} />
             </div>
             <div className="help-field">
-              <FieldLabel id="search-release" term="release">SPHEREx release</FieldLabel>
-              <select id="search-release" value={collection} onChange={event => setCollection(event.target.value)}>
+              <TermHelp labelId="search-release-label" term="release">SPHEREx release</TermHelp>
+              <select id="search-release" aria-labelledby="search-release-label" value={collection} onChange={event => setCollection(event.target.value)}>
                 {releases.map(release => <option key={release}>{release}</option>)}
               </select>
             </div>
@@ -239,11 +242,11 @@ function App() {
       </div>}
       <div className={inSky ? 'layout' : ''}>
         <section className="panel viewer" hidden={!inSky}>
-          <div className="paneltitle"><div>Celestial sky navigator <TermHelp term="navigator" /></div><span>Aladin Lite{activeSurvey && ` · ${surveyNames[activeSurvey]}`}</span></div>
+          <div className="paneltitle"><div><TermHelp term="navigator">Celestial sky navigator</TermHelp></div><span>Aladin Lite{activeSurvey && ` · ${surveyNames[activeSurvey]}`}</span></div>
           <div className="controls">
             <div className="help-field">
-              <FieldLabel id="background-survey" term="survey">Background survey</FieldLabel>
-              <select id="background-survey" value={surveyChoice} disabled={surveyStatus.startsWith('Checking')}
+              <TermHelp labelId="background-survey-label" term="survey">Background survey</TermHelp>
+              <select id="background-survey" aria-labelledby="background-survey-label" value={surveyChoice} disabled={surveyStatus.startsWith('Checking')}
                 onChange={event => setSurveyChoice(event.target.value)}>
                 {Object.entries(surveyNames).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
               </select>
@@ -264,7 +267,7 @@ function App() {
             <p className="hint">Select Search coordinates to retrieve SPHEREx observations at this position.</p>
           </div> : null}
           {mapStatus === 'ready' && <div className="controls">
-            {!coordinateMode && <div className="help-action">Map coordinates (ICRS) <TermHelp term="icrs" /></div>}
+            {!coordinateMode && <div className="help-action">Map coordinates (<TermHelp term="icrs">ICRS</TermHelp>)</div>}
             {!coordinateMode && <button disabled={busy} onClick={() => {
               const center = viewer.current?.getRaDec();
               if (center) moveTo({ ra: center[0].toFixed(6), dec: center[1].toFixed(6) });
@@ -277,9 +280,9 @@ function App() {
             mapVisible={mapStatus === 'ready' && !coordinateMode} validCenter={validCenter} />
         </section>
         {observing && <section className="panel">
-          <div className="paneltitle"><div>Observations <TermHelp term="observation" /></div><span>{listing?.count ?? 0} listed</span></div>
+          <div className="paneltitle"><div><TermHelp term="observation">Observations</TermHelp></div><span>{listing?.count ?? 0} listed</span></div>
           {listing && <p className="hint">{listing.collection} · RA {listing.ra}° · Dec {listing.dec}°{listing.cached && ' · Saved IRSA records'}</p>}
-          {!!listing?.count && <p className="hint observation-key">Time (UTC) <TermHelp term="utc" /> · Detector <TermHelp term="detector" /></p>}
+          {!!listing?.count && <p className="hint observation-key">Time (<TermHelp term="utc">UTC</TermHelp>) · <TermHelp term="detector">Detector</TermHelp></p>}
           <div className="scroll">
             {listing?.observations.map(o => <button className="item" key={o.product_id}
               disabled={busy || !o.access_url} onClick={() => inspect(o)}>
@@ -290,7 +293,7 @@ function App() {
         </section>}
       </div>
       {(observing || tab === 'Candidate Finder') && <section className="panel feature-panel">
-        <div className="paneltitle"><div>Scientific image / investigation <TermHelp term="cutout" /></div>
+        <div className="paneltitle"><div><TermHelp term="cutout">Scientific image</TermHelp> / investigation</div>
           {preview && <div className="help-action"><button disabled={busy} onClick={detect}>Detect sources</button><TermHelp term="peaks" /></div>}</div>
         {preview ? <>
           <SourceImage {...preview} sources={sources} active={active} onSelect={identify} />
@@ -301,8 +304,9 @@ function App() {
       {tab === 'Object Explorer' && <section className="panel feature-panel">
         {active ? <>
           <h2>Source {active.id}</h2>
-          <p>RA {active.ra.toFixed(6)}° <TermHelp term="ra" /> · Dec {active.dec.toFixed(6)}° <TermHelp term="dec" /></p>
-          <h3>SIMBAD matches <TermHelp term="simbad" />{catalog?.length > 0 && <> <TermHelp term="arcsecond" /></>}</h3>
+          <p><TermHelp term="ra">RA</TermHelp> {active.ra.toFixed(6)}° · <TermHelp term="dec">Dec</TermHelp> {active.dec.toFixed(6)}°</p>
+          <h3><TermHelp term="simbad">SIMBAD</TermHelp> matches</h3>
+          {catalog?.length > 0 && <p className="hint">Distance in <TermHelp term="arcsecond">arcseconds (″)</TermHelp></p>}
           {catalog?.length === 0 && <p>Unidentified in this SIMBAD search.</p>}
           {catalog?.map(object => <div key={object.main_id} className="object">
             <b>{object.main_id}</b> · {object.otype} · {object.separation_arcsec.toFixed(2)}″ away
@@ -321,7 +325,7 @@ function App() {
         : <p className="panel">Search for a region with at least two observations.</p>)}
       {tab === 'Spectral Explorer' && <section className="panel feature-panel">
         {listing && <SpectralSamples key={`${listing.ra}/${listing.dec}/${active?.id ?? 0}`} region={listing} active={active} />}
-        <h2>Detector wavelength coverage <TermHelp term="detector" /> <TermHelp term="wavelength" /></h2>
+        <h2><TermHelp term="detector">Detector</TermHelp> <TermHelp term="wavelength">wavelength</TermHelp> coverage</h2>
         <p>These are archive-reported ranges across each product. A source spectrum requires calibrated brightness samples at the selected coordinates.</p>
         {listing?.observations.filter(o => o.em_min && o.em_max).map(o => <div className="object" key={o.product_id}>
           {o.energy_bandpassname} · {(Number(o.em_min) * 1e6).toFixed(2)}–{(Number(o.em_max) * 1e6).toFixed(2)} µm · {observationDate(o)}
@@ -337,7 +341,7 @@ function App() {
         <p>Right ascension and declination locate a region on the sky. IRSA returns the SPHEREx observations intersecting the search circle. FITS stores the calibrated image and the coordinate system used to map image pixels back to the sky.</p>
         <p>A brightness peak can come from an astronomical source or an artifact. Use the catalog result and repeat observations to investigate it.</p>
       </section>}
-      <footer>Observations · NASA/IPAC IRSA | Sky navigation · CDS Aladin Lite | Catalog · SIMBAD</footer>
+      <footer>Observations · <TermHelp term="irsa">NASA/IPAC IRSA</TermHelp> | Sky navigation · CDS Aladin Lite | Catalog · SIMBAD</footer>
     </main>
   </div>;
 }

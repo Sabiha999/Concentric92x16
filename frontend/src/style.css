@@ -40,29 +40,40 @@ figcaption a { color: #81d5ff; }
   gap: 7px;
   min-width: 0;
 }
-.field-label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.help-field > .term-help {
+  justify-self: start;
+  color: #92a8c4;
+  font-size: 11px;
 }
-.term-help {
-  display: inline-flex;
-  vertical-align: middle;
-  margin-inline-start: 4px;
-}
-.term-help .term-help-trigger {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
+.term-help-text,
+.term-help-icon {
+  color: inherit;
+  background: transparent;
+  border: 0;
   padding: 0;
-  color: #a8dbff;
-  background: #172e46;
-  border: 1px solid #527294;
-  border-radius: 50%;
-  font: 700 12px/1 system-ui, sans-serif;
+  font: inherit;
+  cursor: help;
 }
-.term-help-trigger:focus-visible {
+.term-help-text {
+  text-decoration: underline dotted currentColor;
+  text-underline-offset: .22em;
+  text-decoration-thickness: 1px;
+}
+.term-help-text:hover,
+.term-help-icon:hover {
+  color: #a8dbff;
+}
+.term-help-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: #92a8c4;
+  font: 14px/1 system-ui, sans-serif;
+  vertical-align: middle;
+}
+.term-help-text:focus-visible,
+.term-help-icon:focus-visible {
   outline: 2px solid #81d5ff;
   outline-offset: 2px;
 }

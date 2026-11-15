@@ -54,7 +54,7 @@ The saved demo uses IRSA cutouts at RA 133.795129°, Dec −7.245147°, with a w
 
 ## Survey and catalog layers
 
-Hover over, focus, or tap a **?** icon for a plain-language definition. Press **Esc** to close a tooltip.
+Hover over, focus, or tap a dotted-underlined term or a small **ⓘ** beside an action for a plain-language definition. Press **Esc** to close a tooltip.
 
 In Sky Explorer, use **Background survey** to switch between DSS2 optical and 2MASS near-infrared imagery. These map layers provide context for the separate SPHEREx FITS cutout.
 

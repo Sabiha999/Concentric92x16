@@ -50,8 +50,8 @@ export function Comparison({ observations, region }) {
     }
   }
   return <section className="panel feature-panel">
-    <h2>Compare observations <TermHelp term="alignment" /></h2>
-    <p className="hint">Choose different observation dates with the same detector for a visual preview. Wavelength can vary across that detector. <TermHelp term="detector" /> <TermHelp term="wavelength" /></p>
+    <h2>Compare observations</h2>
+    <p className="hint">Choose different observation dates with the same <TermHelp term="detector">detector</TermHelp> for a visual preview. <TermHelp term="wavelength">Wavelength</TermHelp> can vary across that detector.</p>
     <div className="controls">
       {[[first, setFirst, 'First observation'], [second, setSecond, 'Second observation']].map(([value, setValue, label]) =>
         <label key={label}>{label}<select disabled={busy} value={value} onChange={event => {
@@ -59,8 +59,8 @@ export function Comparison({ observations, region }) {
         }}><option value="">Select an observation</option>{products.map(o =>
           <option value={o.access_url} key={o.product_id}>{observationDate(o)} · {o.energy_bandpassname}</option>)}
         </select></label>)}
-      <button className="primary" disabled={busy || !a || !b || a.t_min === b.t_min ||
-        !a.energy_bandpassname || a.energy_bandpassname !== b.energy_bandpassname} onClick={run}>Align and compare</button>
+      <div className="help-action"><button className="primary" disabled={busy || !a || !b || a.t_min === b.t_min ||
+        !a.energy_bandpassname || a.energy_bandpassname !== b.energy_bandpassname} onClick={run}>Align and compare</button><TermHelp term="alignment" /></div>
     </div>
     <p role="status">{status}</p>
     {result && <>
@@ -115,16 +115,16 @@ export function SpectralSamples({ region, active }) {
   }
 
   return <section>
-    <h2>Quick-look spectral samples <TermHelp term="sample" /></h2>
+    <h2>Quick-look <TermHelp term="sample">spectral samples</TermHelp></h2>
     <p>Sample the nearest unmasked pixel at {active ? `source ${active.id}` : 'the search center'} in up to four observations. Values include the local sky background.</p>
     <button disabled={busy || !region.count} onClick={load}>Measure spectral samples</button>
     <p role="status">{status}</p>
     {rows.length > 0 && <div className="spectral-table-scroll"><table className="spectral-table">
       <thead><tr>
-        <th scope="col">Wavelength (µm) <TermHelp term="wavelength" /></th>
-        <th scope="col">Bandwidth (µm) <TermHelp term="bandwidth" /></th>
-        <th scope="col">Brightness (MJy/sr) <TermHelp term="brightness" /></th>
-        <th scope="col">UTC <TermHelp term="utc" /></th>
+        <th scope="col"><TermHelp term="wavelength">Wavelength (µm)</TermHelp></th>
+        <th scope="col"><TermHelp term="bandwidth">Bandwidth (µm)</TermHelp></th>
+        <th scope="col"><TermHelp term="brightness">Brightness (MJy/sr)</TermHelp></th>
+        <th scope="col"><TermHelp term="utc">UTC</TermHelp></th>
       </tr></thead>
       <tbody>{rows.map(row => <tr key={row.observation.product_id}>
         <td>{row.wavelength_um.toFixed(3)}</td><td>{row.bandwidth_um.toFixed(3)}</td>
