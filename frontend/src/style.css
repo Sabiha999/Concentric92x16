@@ -28,3 +28,9 @@ figcaption a { color: #81d5ff; }
 .catalog-controls { border-top: 1px solid #2b4059; margin-top: 12px; padding-top: 4px; }
 .catalog-controls summary { cursor: pointer; color: #bde5fb; padding: 8px 0; }
 .catalog-controls .scroll { max-height: 230px; }
+.sky-search { display: grid; grid-template-columns: minmax(225px, 1fr) minmax(0, 2.5fr); gap: 14px; margin: 14px 0; }
+.search-panel h2, .catalog-controls h2 { margin: 0; font-size: 16px; }
+.search-panel .controls { margin-bottom: 0; }
+.search-actions { border-top: 1px solid #2b4059; padding-top: 10px; }
+.catalog-controls h2 { margin-top: 8px; }
+@media (max-width: 850px) { .sky-search { grid-template-columns: 1fr; } }

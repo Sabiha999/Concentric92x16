@@ -106,10 +106,10 @@ function App() {
 
   function resolve() {
     return run(async () => {
-      setStatus('Resolving object with SIMBAD…');
+      setStatus('Resolving object with CDS Sesame…');
       const object = await query('/api/resolve', { name });
       moveTo(object);
-      setStatus(`${object.name} located. Choose a radius and search coordinates.`);
+      setStatus(`${object.name} located${object.cached ? ' from saved catalog coordinates' : ''}. Choose a radius and search coordinates.`);
     });
   }
 
@@ -176,6 +176,9 @@ function App() {
     if (next === 'Saved') run(async () => setSaved((await fetchJson('/api/bookmarks')).items));
   }
 
+  const validCenter = ra.trim() && dec.trim() && Number(ra) >= 0 && Number(ra) < 360
+    && Number(dec) >= -90 && Number(dec) <= 90;
+  const validRadius = Number(radius) >= 0.001 && Number(radius) <= 0.2;
   const inSky = tab === 'Sky Explorer';
   const observing = inSky || tab === 'Timeline';
   return <div className="app">
@@ -184,20 +187,42 @@ function App() {
         onClick={() => navigate(item)}>{item}</button>)}</nav></aside>
     <main>
       <header><h1>{tab}</h1><span className="pill" role="status">{status}</span></header>
-      {inSky && <section className="controls">
-        <label>Object name<input value={name} onChange={event => setName(event.target.value)} placeholder="Barnard’s Star" /></label>
-        <button disabled={busy || !name.trim()} onClick={resolve}>Find object</button>
-        <label>Right ascension (°)<input value={ra} onChange={event => setRa(event.target.value)} /></label>
-        <label>Declination (°)<input value={dec} onChange={event => setDec(event.target.value)} /></label>
-        <label>Search radius (°)<input type="number" min=".001" max=".2" step=".001" value={radius} onChange={event => setRadius(event.target.value)} /></label>
-        <label>SPHEREx release<select value={collection} onChange={event => setCollection(event.target.value)}>
-          {releases.map(release => <option key={release}>{release}</option>)}</select></label>
-        <button className="primary" disabled={busy || !ra.trim() || !dec.trim() || !radius} onClick={() => search()}>Search coordinates</button>
-        <button disabled={busy} onClick={() => {
-          setCollection('spherex_dr1'); setName('WISE 0855'); setRadius('0.01'); moveTo(wise); search(wise, 'spherex_dr1', true);
-        }}>Explore WISE 0855 demo</button>
-        <button disabled={busy || !ra.trim() || !dec.trim()} onClick={() => save({ ra, dec }, name.trim() || `Region ${ra}, ${dec}`)}>Save region</button>
-      </section>}
+      {inSky && <div className="sky-search">
+        <form className="panel search-panel" onSubmit={event => {
+          event.preventDefault();
+          if (!busy && name.trim()) resolve();
+        }}>
+          <h2>Find a sky position</h2>
+          <div className="controls">
+            <label>Object name<input value={name} onChange={event => setName(event.target.value)} placeholder="Barnard’s Star" /></label>
+            <button disabled={busy || !name.trim()}>Find object</button>
+          </div>
+          <p className="hint">Find object fills RA and Dec. Then search SPHEREx observations.</p>
+        </form>
+        <form className="panel search-panel" onSubmit={event => {
+          event.preventDefault();
+          if (!busy && validCenter && validRadius) search();
+        }}>
+          <h2>Search SPHEREx observations</h2>
+          <div className="controls">
+            <label>Right ascension (°)<input inputMode="decimal" value={ra} onChange={event => setRa(event.target.value)} /></label>
+            <label>Declination (°)<input inputMode="decimal" value={dec} onChange={event => setDec(event.target.value)} /></label>
+            <label>Search radius (°)<input type="number" min=".001" max=".2" step="any" value={radius}
+              onChange={event => setRadius(event.target.value)} /></label>
+            <label>SPHEREx release<select value={collection} onChange={event => setCollection(event.target.value)}>
+              {releases.map(release => <option key={release}>{release}</option>)}</select></label>
+            <button className="primary" disabled={busy || !validCenter || !validRadius}>Search coordinates</button>
+          </div>
+          {(!validCenter || !validRadius) && <p className="hint">Use decimal degrees. RA must be 0° to below 360°, Dec −90° to +90°, and radius 0.001° through 0.2°.</p>}
+          <div className="controls search-actions">
+            <button type="button" disabled={busy} onClick={() => {
+              setCollection('spherex_dr1'); setName('WISE 0855'); setRadius('0.01'); search(wise, 'spherex_dr1', true);
+            }}>Explore WISE 0855 demo</button>
+            <button type="button" disabled={busy || !validCenter}
+              onClick={() => save({ ra, dec }, `Region ${ra}, ${dec}`)}>Save region</button>
+          </div>
+        </form>
+      </div>}
       <div className={inSky ? 'layout' : ''}>
         <section className="panel viewer" hidden={!inSky}>
           <div className="paneltitle">Celestial sky navigator <span>Aladin Lite{activeSurvey && ` · ${surveyNames[activeSurvey]}`}</span></div>
@@ -231,7 +256,7 @@ function App() {
             </button>
           </div>}
           <GaiaCatalog ra={ra} dec={dec} map={viewer.current} library={aladinLibrary.current}
-            mapVisible={mapStatus === 'ready' && !coordinateMode} />
+            mapVisible={mapStatus === 'ready' && !coordinateMode} validCenter={validCenter} />
         </section>
         {observing && <section className="panel">
           <div className="paneltitle">Observations <span>{listing?.count ?? 0} listed</span></div>
@@ -240,7 +265,7 @@ function App() {
             {listing?.observations.map(o => <button className="item" key={o.product_id}
               disabled={busy || !o.access_url} onClick={() => inspect(o)}>
               {o.obs_id}<small>{observationDate(o)} · {o.energy_bandpassname}</small></button>)}
-            {!listing?.count && <p className="empty">{listing ? 'No observations in this release.' : 'Search a sky region to list observations.'}</p>}
+            {!listing?.count && <p className="empty">{listing ? 'No observations matched these coordinates, radius and release.' : 'Run Search coordinates or open the saved WISE 0855 demo.'}</p>}
           </div>
           {listing?.count > 1 && <button onClick={() => setTab('Time Comparison')}>Compare observations</button>}
         </section>}

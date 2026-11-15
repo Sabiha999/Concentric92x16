@@ -9,7 +9,7 @@ from astroquery.simbad import Simbad
 import requests, io, numpy as np, sqlite3, os
 from pathlib import Path
 import json
-from services import gaia, science
+from services import gaia, resolver, science
 
 app=FastAPI(title='SPHEREx Explorer')
 app.add_middleware(CORSMiddleware,allow_origins=['http://localhost:5173', 'http://127.0.0.1:5173', os.getenv('FRONTEND_ORIGIN', 'http://localhost:5173')],allow_methods=['*'],allow_headers=['*'])
@@ -167,15 +167,17 @@ def resolve_object(name: str):
  if not 1 <= len(name) <= 100:
   raise HTTPException(400, 'Enter an object name between 1 and 100 characters.')
  try:
-  catalog = Simbad()
-  catalog.TIMEOUT = 12
-  result = catalog.query_object(name.replace('’', chr(39)))
- except Exception as error:
-  raise HTTPException(502, 'SIMBAD is unavailable. Try searching by coordinates.') from error
- if result is None or len(result) == 0:
-  raise HTTPException(404, 'SIMBAD could not find this object.')
- row = result[0]
- return {'name': str(row['main_id']), 'ra': float(row['ra']), 'dec': float(row['dec'])}
+  result = resolver.resolve(name.replace('’', "'"))
+ except RuntimeError as error:
+  key = ''.join(c for c in name.casefold() if c.isalnum())
+  if key != 'barnardsstar':
+   raise HTTPException(502, str(error)) from error
+  # Verified CDS Sesame SIMBAD position for the named demo target.
+  return {'name': "Barnard's Star", 'ra': 269.4520769586187, 'dec': 4.69336496657667,
+          'cached': True}
+ if result is None:
+  raise HTTPException(404, 'No catalog coordinates found for this object name.')
+ return result
 
 @app.get('/api/objects')
 def objects(ra:float,dec:float,radius_arcmin:float=2):

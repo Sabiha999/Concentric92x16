@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { fetchJson } from './sky-api.js';
 
-export default function GaiaCatalog({ ra, dec, map, library, mapVisible }) {
+export default function GaiaCatalog({ ra, dec, map, library, mapVisible, validCenter }) {
   const [radius, setRadius] = useState('0.05');
   const [result, setResult] = useState(null);
   const [status, setStatus] = useState('');
@@ -12,7 +12,7 @@ export default function GaiaCatalog({ ra, dec, map, library, mapVisible }) {
   useEffect(() => {
     if (!map || !library || !catalog.current && !result?.sources.length) return;
     if (!catalog.current) {
-      catalog.current = library.catalog({ name: 'Gaia DR3', color: '#56f5c8',
+      catalog.current = library.catalog({ name: 'Gaia DR3 · search results', color: '#56f5c8',
         sourceSize: 9, shape: 'circle', onClick: 'showPopup' });
       map.addCatalog(catalog.current);
     }
@@ -48,15 +48,23 @@ export default function GaiaCatalog({ ra, dec, map, library, mapVisible }) {
   }
 
   return <section className="catalog-controls" aria-label="Gaia DR3 catalog">
+    <h2>Gaia DR3 catalog overlay</h2>
     <div className="controls">
       <label>Gaia radius (°)<input type="number" min=".001" max=".2" step=".001" value={radius}
         disabled={loading} onChange={event => setRadius(event.target.value)} /></label>
-      <button disabled={loading || !ra.trim() || !dec.trim() || !(+radius > 0 && +radius <= .2)}
+      <button disabled={loading || !validCenter || !(+radius > 0 && +radius <= .2)}
         onClick={load}>Load Gaia DR3</button>
       {result?.sources.length > 0 && <>
-        {mapVisible && <button aria-pressed={visible} onClick={() => setVisible(!visible)}>
-          {visible ? 'Hide Gaia markers' : 'Show Gaia markers'}
-        </button>}
+        {mapVisible && <>
+          <button onClick={() => {
+            map.gotoRaDec(Number(result.ra), Number(result.dec));
+            map.setFoV(Math.max(0.02, Number(result.radius) * 3));
+            setVisible(true);
+          }}>Zoom to Gaia field</button>
+          <button aria-pressed={visible} onClick={() => setVisible(!visible)}>
+            {visible ? 'Hide Gaia markers' : 'Show Gaia markers'}
+          </button>
+        </>}
         <button onClick={() => { setResult(null); setStatus(''); }}>Clear Gaia results</button>
       </>}
     </div>
