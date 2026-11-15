@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { fetchJson, observationDate } from './sky-api.js';
 import { Comparison, SourceImage, SpectralSamples } from './Investigation.jsx';
+import { findOpticalSurvey } from './sky-surveys.js';
 import './style.css';
 
 const tabs = ['Sky Explorer', 'Candidate Finder', 'Object Explorer', 'Timeline', 'Time Comparison', 'Spectral Explorer', 'Saved', 'Learn'];
@@ -17,7 +18,8 @@ function App() {
   const [collection, setCollection] = useState('spherex_dr1');
   const [tab, setTab] = useState('Sky Explorer');
   const [status, setStatus] = useState('Ready');
-  const [mapError, setMapError] = useState('');
+  const [mapStatus, setMapStatus] = useState('loading');
+  const [coordinateMode, setCoordinateMode] = useState(false);
   const [busy, setBusy] = useState(false);
   const [listing, setListing] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -26,28 +28,51 @@ function App() {
   const [catalog, setCatalog] = useState(null);
   const [saved, setSaved] = useState([]);
   const viewer = useRef(null);
+  const mapContainer = useRef(null);
+  const position = useRef({ ra: 83.6331, dec: 22.0145 });
 
   useEffect(() => {
-    let alive = true;
+    const controller = new AbortController();
     async function init() {
       try {
+        const survey = await findOpticalSurvey(controller.signal);
+        if (controller.signal.aborted) return;
+        if (!survey) {
+          setMapStatus('offline');
+          return;
+        }
         const { default: A } = await import('aladin-lite');
         await A.init;
-        if (alive) viewer.current = A.aladin('#aladin', {
-          survey: 'P/DSS2/color', fov: 2, target: '83.6331 22.0145', showReticle: true,
+        if (controller.signal.aborted) return;
+        const { ra, dec } = position.current;
+        // Make the container visible before Aladin measures it.
+        mapContainer.current.hidden = false;
+        viewer.current = A.aladin(mapContainer.current, {
+          survey, fov: 2, target: `${ra} ${dec}`, showReticle: true,
         });
+        setMapStatus('ready');
       } catch {
-        if (alive) setMapError('Optical map unavailable. Coordinate search still works.');
+        if (!controller.signal.aborted) setMapStatus('offline');
       }
     }
     init();
-    return () => { alive = false; };
+    return () => controller.abort();
   }, []);
 
-  function moveTo(position) {
-    setRa(String(position.ra));
-    setDec(String(position.dec));
-    viewer.current?.gotoRaDec(Number(position.ra), Number(position.dec));
+  function moveTo(target) {
+    position.current = { ra: Number(target.ra), dec: Number(target.dec) };
+    setRa(String(target.ra));
+    setDec(String(target.dec));
+    viewer.current?.gotoRaDec(position.current.ra, position.current.dec);
+  }
+
+  function nudge(deltaRa, deltaDec) {
+    const nextRa = Number(ra), nextDec = Number(dec);
+    if (!ra.trim() || !dec.trim() || !Number.isFinite(nextRa) || !Number.isFinite(nextDec)) return;
+    moveTo({
+      ra: (((nextRa + deltaRa) % 360 + 360) % 360).toFixed(6),
+      dec: Math.min(90, Math.max(-90, nextDec + deltaDec)).toFixed(6),
+    });
   }
 
   async function run(task) {
@@ -77,7 +102,7 @@ function App() {
     return run(async () => {
       setListing(null);
       clearImage();
-      setStatus('Searching NASA/IPAC IRSA…');
+      setStatus(preset ? 'Opening saved WISE 0855 observations…' : 'Searching NASA/IPAC IRSA…');
       const data = preset
         ? await fetchJson('/api/demo')
         : await query('/api/observations', { ...position, radius, collection: release });
@@ -161,12 +186,29 @@ function App() {
       <div className={inSky ? 'layout' : ''}>
         <section className="panel viewer" hidden={!inSky}>
           <div className="paneltitle">Celestial sky navigator <span>Aladin Lite · DSS2 optical survey</span></div>
-          <div id="aladin" className="sky-map" />
-          {mapError && <p className="hint">{mapError}</p>}
-          <button className="hint" disabled={busy} onClick={() => {
-            const center = viewer.current?.getRaDec();
-            if (center) moveTo({ ra: center[0].toFixed(6), dec: center[1].toFixed(6) });
-          }}>Use map center</button>
+          <div ref={mapContainer} id="aladin" className="sky-map" hidden={mapStatus !== 'ready' || coordinateMode} />
+          {mapStatus === 'loading' && <p className="hint" role="status">Checking DSS2 survey availability…</p>}
+          {mapStatus === 'offline' || coordinateMode ? <div className="coordinate-navigator">
+            <h2>Coordinate navigator</h2>
+            {mapStatus === 'offline' && <p>DSS2 imagery is unavailable. Enter coordinates above or use the controls below.</p>}
+            <p>RA {ra || '—'}° · Dec {dec || '—'}°</p>
+            <div className="controls" aria-label="Move by one degree">
+              <button disabled={busy} onClick={() => nudge(0, 1)}>North 1°</button>
+              <button disabled={busy} onClick={() => nudge(0, -1)}>South 1°</button>
+              <button disabled={busy} onClick={() => nudge(1, 0)}>RA +1°</button>
+              <button disabled={busy} onClick={() => nudge(-1, 0)}>RA −1°</button>
+            </div>
+            <p className="hint">Select Search coordinates to retrieve SPHEREx observations at this position.</p>
+          </div> : null}
+          {mapStatus === 'ready' && <div className="controls">
+            {!coordinateMode && <button disabled={busy} onClick={() => {
+              const center = viewer.current?.getRaDec();
+              if (center) moveTo({ ra: center[0].toFixed(6), dec: center[1].toFixed(6) });
+            }}>Use map center</button>}
+            <button onClick={() => setCoordinateMode(!coordinateMode)}>
+              {coordinateMode ? 'Show optical map' : 'Use coordinate navigator'}
+            </button>
+          </div>}
         </section>
         {observing && <section className="panel">
           <div className="paneltitle">Observations <span>{listing?.count ?? 0} listed</span></div>

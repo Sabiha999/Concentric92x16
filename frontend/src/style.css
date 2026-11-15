@@ -21,3 +21,7 @@ figcaption a { color: #81d5ff; }
 .overlay img + img { position: absolute; inset: 0; }
 .spectral-table { border-collapse: collapse; margin: 16px 0 25px; }
 .spectral-table td, .spectral-table th { padding: 8px 14px; border-bottom: 1px solid #294058; text-align: left; }
+.sky-map[hidden] { display: none !important; }
+.coordinate-navigator { padding: 18px; border: 1px solid #2b4059; border-radius: 8px; }
+.coordinate-navigator h2 { margin: 0; font-size: 16px; }
+.item small { color: #b1c5df; }
