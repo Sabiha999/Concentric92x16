@@ -1,12 +1,15 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from astropy.io import fits
 from astropy.time import Time
 from urllib.parse import urlsplit
+from time import sleep
+from functools import lru_cache
 from astroquery.simbad import Simbad
-import requests, io, numpy as np, base64, sqlite3, os
-from PIL import Image
+import requests, io, numpy as np, sqlite3, os
+from pathlib import Path
+import json
+from services import science
 
 app=FastAPI(title='SPHEREx Explorer')
 app.add_middleware(CORSMiddleware,allow_origins=['http://localhost:5173', 'http://127.0.0.1:5173', os.getenv('FRONTEND_ORIGIN', 'http://localhost:5173')],allow_methods=['*'],allow_headers=['*'])
@@ -22,14 +25,43 @@ class Bookmark(BaseModel):
 @app.get('/api/health')
 def health(): return {'status':'ok'}
 
+DEMO_DIR = Path(__file__).parent / 'demo_data'
+DEMO_RA, DEMO_DEC = 133.795129, -7.245147
+
+
+def demo_records():
+ return json.loads((DEMO_DIR / 'observations.json').read_text(encoding='utf-8'))
+
+
+@app.get('/api/demo')
+def demo():
+ rows = demo_records()
+ return {'ra': DEMO_RA, 'dec': DEMO_DEC, 'collection': 'spherex_dr1',
+         'count': len(rows), 'observations': rows, 'cached': True}
+
+
+def irsa_get(url, params):
+ for attempt in range(3):
+  try:
+   resp = requests.get(url, params=params, timeout=(10, 30), allow_redirects=False)
+   if resp.status_code not in (502, 503, 504) or attempt == 2:
+    break
+  except (requests.ConnectionError, requests.Timeout, requests.exceptions.ChunkedEncodingError):
+   if attempt == 2:
+    raise
+  sleep(2 ** attempt)
+ return resp
+
+
 @app.get('/api/observations')
 def observations(ra:float,dec:float,radius:float=0.01,collection:str='spherex_dr1'):
  if not (0<=ra<360 and -90<=dec<=90 and 0<radius<=0.2): raise HTTPException(400,'Invalid coordinates or radius')
  if collection not in ('spherex_dr1','spherex_qr3','spherex_dr1_deep','spherex_qr3_deep','spherex_dr1_cube'): raise HTTPException(400,'Invalid collection')
  try:
   from astropy.io.votable import parse_single_table
-  resp=requests.get('https://irsa.ipac.caltech.edu/SIA',params={'COLLECTION':collection,'POS':f'CIRCLE {ra} {dec} {radius}','RESPONSEFORMAT':'VOTABLE','MAXREC':1000},timeout=40)
-  resp.raise_for_status()
+  resp=irsa_get('https://irsa.ipac.caltech.edu/SIA', {'COLLECTION':collection,'POS':f'CIRCLE {ra} {dec} {radius}','RESPONSEFORMAT':'VOTABLE','MAXREC':25})
+  if not resp.ok or resp.is_redirect:
+   raise ValueError(f'IRSA returned HTTP {resp.status_code}')
   rows=parse_single_table(io.BytesIO(resp.content)).to_table(use_names_over_ids=True)
   out=[]
   for row in rows:
@@ -42,38 +74,75 @@ def observations(ra:float,dec:float,radius:float=0.01,collection:str='spherex_dr
    d['date_utc'] = Time(float(d['t_min']), format='mjd', scale='utc').isot if d.get('t_min') else None
    out.append(d)
   out.sort(key=lambda observation: observation['date_utc'] or '9999')
-  return {'collection':collection,'count':len(rows),'observations':out,'possibly_truncated':len(rows) >= 1000}
+  return {'collection':collection,'count':len(rows),'observations':out,'possibly_truncated':len(rows) >= 25}
  except Exception as e: raise HTTPException(502,f'IRSA archive query failed: {e}')
 
-@app.get('/api/cutout')
-def cutout(url:str,ra:float,dec:float,size:float=0.05):
+@lru_cache(maxsize=12)
+def cutout_bytes(url: str, ra: float, dec: float, size: float):
  parts = urlsplit(url)
  if (parts.scheme != 'https' or parts.netloc != 'irsa.ipac.caltech.edu'
      or not parts.path.startswith('/ibe/data/spherex/') or not parts.path.endswith('.fits')
      or parts.query or parts.fragment or '%' in parts.path or '..' in parts.path
      or not (0 <= ra < 360 and -90 <= dec <= 90 and 0 < size <= 0.2)):
-  raise HTTPException(400,'Invalid IRSA cutout request')
+  raise HTTPException(400, 'Invalid IRSA cutout request')
+ if abs(ra - DEMO_RA) < 1e-7 and abs(dec - DEMO_DEC) < 1e-7 and size == 0.05:
+  for record in demo_records():
+   if url == record['access_url']:
+    return (DEMO_DIR / record['file']).read_bytes()
  try:
-  resp=requests.get(url,params={'center':f'{ra},{dec}','size':size},timeout=75, allow_redirects=False)
+  params = {'center': f'{ra},{dec}', 'size': size}
+  resp = irsa_get(url, params)
   if resp.is_redirect:
    raise ValueError('Unexpected archive redirect')
   resp.raise_for_status()
-  with fits.open(io.BytesIO(resp.content),memmap=False) as hdul:
-   hdu=next((h for h in hdul if h.name=='IMAGE' and h.data is not None),None)
-   if hdu is None: raise ValueError('IMAGE extension missing')
-   a=np.asarray(hdu.data,dtype=float)
-   if a.ndim != 2:
-    raise HTTPException(400, 'Select a spectral image for a 2D cutout.')
-   finite=np.isfinite(a)
-   if not finite.any():raise ValueError('No finite image pixels')
-   lo,hi=np.nanpercentile(a[finite],[2,99.5]); scaled=np.clip((a-lo)/max(hi-lo,1e-9),0,1)
-   scaled[~finite]=0
-   im=Image.fromarray(np.uint8(scaled*255),'L')
-   buf=io.BytesIO();im.save(buf,format='PNG')
-   return {'image':'data:image/png;base64,'+base64.b64encode(buf.getvalue()).decode(),'shape':list(a.shape),'min':float(lo),'max':float(hi),'note':'Display stretch only; not photometrically calibrated for subtraction'}
- except HTTPException:
-  raise
- except Exception as e:raise HTTPException(502,f'Cutout processing failed: {e}')
+  return resp.content
+ except (requests.RequestException, OSError, ValueError) as error:
+  raise HTTPException(502, f'Unable to load IRSA cutout: {error}') from error
+
+
+def load_cutout(url, ra, dec, size, sample_ra=None, sample_dec=None):
+ return science.read_image(cutout_bytes(url, ra, dec, size),
+                           ra if sample_ra is None else sample_ra,
+                           dec if sample_dec is None else sample_dec)
+
+
+@app.get('/api/spectrum-point')
+def spectrum_point(url: str, ra: float, dec: float, sample_ra: float,
+                   sample_dec: float, size: float = 0.05):
+ try:
+  _, _, sample = load_cutout(url, ra, dec, size, sample_ra, sample_dec)
+  return {'sample': sample}
+ except ValueError as error:
+  raise HTTPException(422, str(error)) from error
+
+
+@app.get('/api/cutout')
+def cutout(url: str, ra: float, dec: float, size: float = 0.05):
+ try:
+  data, _, spectral = load_cutout(url, ra, dec, size)
+  low, high = science.display_limits(data)
+  return {'image': science.png(data, low, high), 'shape': list(data.shape),
+          'min': low, 'max': high, 'spectral': spectral, 'note': 'Display stretch only'}
+ except ValueError as error:
+  raise HTTPException(422, str(error)) from error
+
+
+@app.get('/api/sources')
+def sources(url: str, ra: float, dec: float, size: float = 0.05):
+ data, wcs, _ = load_cutout(url, ra, dec, size)
+ return {'sources': science.detect_sources(data, wcs)}
+
+
+@app.get('/api/compare')
+def compare(first: str, second: str, ra: float, dec: float, size: float = 0.05):
+ if first == second:
+  raise HTTPException(400, 'Select two distinct observations.')
+ try:
+  return science.compare(load_cutout(first, ra, dec, size),
+                         load_cutout(second, ra, dec, size))
+ except ValueError as error:
+  raise HTTPException(422, str(error)) from error
+
 
 @app.get('/api/resolve')
 def resolve_object(name: str):
@@ -81,7 +150,9 @@ def resolve_object(name: str):
  if not 1 <= len(name) <= 100:
   raise HTTPException(400, 'Enter an object name between 1 and 100 characters.')
  try:
-  result = Simbad.query_object(name)
+  catalog = Simbad()
+  catalog.TIMEOUT = 12
+  result = catalog.query_object(name.replace('’', chr(39)))
  except Exception as error:
   raise HTTPException(502, 'SIMBAD is unavailable. Try searching by coordinates.') from error
  if result is None or len(result) == 0:
@@ -94,11 +165,22 @@ def objects(ra:float,dec:float,radius_arcmin:float=2):
  try:
   from astropy.coordinates import SkyCoord
   import astropy.units as u
-  table=Simbad.query_region(SkyCoord(ra,dec,unit='deg'),radius=min(radius_arcmin,10)*u.arcmin)
+  target = SkyCoord(ra, dec, unit='deg')
+  catalog = Simbad()
+  catalog.TIMEOUT = 12
+  catalog.add_votable_fields('otype')
+  table = catalog.query_region(target, radius=min(radius_arcmin, 10)*u.arcmin)
   if table is None:return {'objects':[]}
   out=[]
-  for row in table[:30]:
-   out.append({k:str(row[k]) for k in ('main_id','ra','dec') if k in table.colnames})
+  for row in table:
+   if np.ma.is_masked(row['ra']) or np.ma.is_masked(row['dec']):
+    continue
+   distance = target.separation(SkyCoord(row['ra'], row['dec'], unit='deg')).arcsec
+   out.append({'main_id': str(row['main_id']), 'ra': float(row['ra']),
+               'dec': float(row['dec']), 'otype': str(row['otype']),
+               'separation_arcsec': float(distance)})
+  out.sort(key=lambda item: item['separation_arcsec'])
+  out = out[:30]
   return {'objects':out,'source':'SIMBAD'}
  except Exception as e:raise HTTPException(502,f'SIMBAD lookup failed: {e}')
 
